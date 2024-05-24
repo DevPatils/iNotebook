@@ -2,9 +2,10 @@ const express = require("express");
 const router = express.Router();
 const fetchuser = require("../MiddleWare/fetchuser");
 const Note = require("../Models/Note");
+const jwt = require('jsonwebtoken');
 const { body, validationResult } = require("express-validator");
 
-//Get all the notes
+// Route 1 : Get all the notes
 router.get("/fetchallnotes", fetchuser, async (req, res) => {
   try {
     const notes = await Note.find({ user: req.user.id });
@@ -15,7 +16,7 @@ router.get("/fetchallnotes", fetchuser, async (req, res) => {
   }
 });
 
-//Add a new note
+// Route 2 : Add a new note
 router.post(
   "/addnote",
   fetchuser,
@@ -47,5 +48,38 @@ router.post(
     }
   }
 );
+
+//Route 3: Updating the note 
+
+router.put("/updatenote/:id", fetchuser, async (req, res) => {
+  const { title, description, tag } = req.body;
+
+  // Create a new note object
+  const newNote = {};
+  if (title) newNote.title = title;
+  if (description) newNote.description = description;
+  if (tag) newNote.tag = tag;
+
+  try {
+      // Find the note to be updated and update it
+      let note = await Note.findById(req.params.id);
+      if (!note) {
+          return res.status(404).send("Note not found!");
+      }
+
+      // Checking if the user owns the note
+      if (note.user.toString() !== req.user.id) {
+          return res.status(403).send("Not allowed");
+      }
+
+      // Update the note
+      note = await Note.findByIdAndUpdate(req.params.id, { $set: newNote }, { new: true });
+
+      res.json(note);
+  } catch (error) {
+      console.error(error.message);
+      res.status(500).send("Internal Server Error");
+  }
+});
 
 module.exports = router;
